@@ -22,9 +22,13 @@ Ask questions → we retrieve the most relevant passages and produce a concise a
 
 - Text cleaning: strip front/back matter, normalize whitespace, preserve chapter markers.  
 
-- Flexible chunking (size/overlap configurable).  
+- Flexible chunking (size/overlap configurable) with paragraph-aware boundaries.  
 
-- Embeddings via `sentence-transformers` and FAISS index.  
+- Embeddings via `sentence-transformers/all-MiniLM-L6-v2` (384-dimensional vectors).  
+
+- t-SNE visualization for embedding quality verification.  
+
+- FAISS index for fast semantic search.  
 
 - Gradio demo UI with **quoted evidence** and source refs.
 
@@ -46,7 +50,7 @@ pip install -r requirements.txt
 ## Project structure
 
 - `notebooks/01_ingest_and_clean.ipynb` – ✅ **Complete** – download & clean text (explain choices).
-- `notebooks/02_chunk_and_embed.ipynb` – chunking strategy, embedding preview.
+- `notebooks/02_chunk_and_embed.ipynb` – ✅ **Complete** – chunking strategy, embedding preview.
 - `notebooks/03_build_index_and_retrieve.ipynb` – FAISS index + retrieval sanity checks.
 - `notebooks/04_eval_and_demo.ipynb` – tiny QA set eval + wire the Gradio prototype.
 - `src/` modules – minimal signatures & TODOs to turn notebooks into a pipeline.
@@ -54,10 +58,31 @@ pip install -r requirements.txt
 
 ## Progress
 
-- ✅ **Notebook 01**: Ingestion and cleaning complete
-  - Implemented `download_book()` with Project Gutenberg integration
-  - Implemented `clean_text()` with Gutenberg header/footer removal
-  - Both Iliad and Dorian Gray texts successfully downloaded and cleaned
+### ✅ **Notebook 01**: Ingestion and cleaning complete
+- Implemented `download_book()` with Project Gutenberg integration
+- Implemented `clean_text()` with Gutenberg header/footer removal
+- Both Iliad and Dorian Gray texts successfully downloaded and cleaned
+- Files saved to `data/raw/` and `data/interim/`
+
+### ✅ **Notebook 02**: Chunking and embedding complete
+- Implemented `split_into_paragraphs()` for natural text boundaries
+- Implemented `chunk_paragraphs()` with configurable size (800 chars) and overlap (120 chars)
+- Fixed infinite loop bug in overlap calculation
+- Implemented `embed_texts()` using `sentence-transformers/all-MiniLM-L6-v2`
+- Generated 384-dimensional embeddings for text chunks
+- Added t-SNE visualization to verify embedding quality and semantic diversity
+- Successfully chunked and embedded both books (Dorian Gray: ~1,500+ chunks, Iliad: similar)
+
+**Key Achievements:**
+- Character-based chunking with paragraph-aware boundaries
+- Overlapping chunks preserve context across boundaries
+- Embeddings verified with t-SNE: shows good semantic diversity
+- All chunks include metadata (book, paragraph indices, character counts)
+
+**Visualization:**
+- t-SNE projection of 10 sample embeddings shows good semantic diversity
+- Embeddings are well-distributed in 2D space, indicating the model captures distinct semantic features
+- See `images/tsne_embeddings.png` for the visualization
 
 ---
 
