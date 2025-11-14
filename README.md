@@ -45,12 +45,19 @@ pip install -r requirements.txt
 
 ## Project structure
 
-- `notebooks/01_ingest_and_clean.ipynb` – download & clean text (explain choices).
+- `notebooks/01_ingest_and_clean.ipynb` – ✅ **Complete** – download & clean text (explain choices).
 - `notebooks/02_chunk_and_embed.ipynb` – chunking strategy, embedding preview.
 - `notebooks/03_build_index_and_retrieve.ipynb` – FAISS index + retrieval sanity checks.
 - `notebooks/04_eval_and_demo.ipynb` – tiny QA set eval + wire the Gradio prototype.
 - `src/` modules – minimal signatures & TODOs to turn notebooks into a pipeline.
 - `configs/app.yaml` – parameters you can tweak without editing code.
+
+## Progress
+
+- ✅ **Notebook 01**: Ingestion and cleaning complete
+  - Implemented `download_book()` with Project Gutenberg integration
+  - Implemented `clean_text()` with Gutenberg header/footer removal
+  - Both Iliad and Dorian Gray texts successfully downloaded and cleaned
 
 ---
 

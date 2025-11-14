@@ -1,8 +1,9 @@
 # App configuration (edit in notebooks first, then here).
-book: "iliad"          # options: iliad | dorian
+book: "dorian"          # options: iliad | dorian
 chunk_size: 800        # characters per chunk
 chunk_overlap: 120     # characters overlap
 embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
 top_k: 5               # retrieved chunks
 max_answer_tokens: 300 # for answer composition (heuristic, not an LLM cap)
-
+iliad_link: "https://www.gutenberg.org/files/6130/6130-0.txt"
+dorian_gray_link: "https://www.gutenberg.org/files/174/174-0.txt"
