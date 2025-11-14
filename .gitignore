@@ -1,0 +1,10 @@
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+.venv/
+.env
+data/raw/
+data/interim/
+data/index/
+artifacts/
+

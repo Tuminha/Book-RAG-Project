@@ -1,0 +1,13 @@
+numpy
+pandas
+regex
+beautifulsoup4
+tqdm
+matplotlib
+seaborn
+scikit-learn
+sentence-transformers
+faiss-cpu
+pyyaml
+gradio
+
