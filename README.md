@@ -82,7 +82,14 @@ pip install -r requirements.txt
 **Visualization:**
 - t-SNE projection of 10 sample embeddings shows good semantic diversity
 - Embeddings are well-distributed in 2D space, indicating the model captures distinct semantic features
-- See `images/tsne_embeddings.png` for the visualization
+
+<div align="center">
+
+![t-SNE Visualization of Embeddings](images/tsne_embeddings.png)
+
+*t-SNE visualization of 10 chunk embeddings from Dorian Gray. Each point represents a chunk, colored by index. The spread indicates good semantic diversity in the embeddings.*
+
+</div>
 
 ---
 
