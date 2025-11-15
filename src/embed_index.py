@@ -3,9 +3,19 @@ Embeddings + FAISS index build/save/load.
 """
 from typing import List
 from pathlib import Path
+import os
+import platform
+
+# On macOS, FAISS and PyTorch both ship libomp and loading both copies without
+# telling LibOMP they're duplicates aborts the interpreter. Setting this flag
+# before importing either library prevents the crash when building embeddings.
+if platform.system() == "Darwin":
+    os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 import numpy as np
-from sentence_transformers import SentenceTransformer
+# Import FAISS before torch/sentence-transformers so libomp loads in a safe order on macOS.
 import faiss
+from sentence_transformers import SentenceTransformer
 import pandas as pd
 
 
@@ -43,8 +53,12 @@ def build_faiss_index(embeddings):
     if embeddings.dtype != np.float32:
         embeddings = embeddings.astype(np.float32)
     
+    # Make a copy before normalizing to avoid in-place modification issues
+    # (normalize_L2 modifies the array in-place)
+    embeddings = embeddings.copy()
+    
     # Ensure embeddings are normalized for IndexFlatIP (inner product = cosine similarity)
-    # Note: embeddings should already be normalized from embed_texts, but double-check
+    # Note: embeddings should already be normalized from embed_texts, but normalize_L2 is idempotent
     faiss.normalize_L2(embeddings)
     
     # Create IndexFlatIP (Inner Product) for normalized vectors

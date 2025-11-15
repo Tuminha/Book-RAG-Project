@@ -91,6 +91,60 @@ pip install -r requirements.txt
 
 </div>
 
+### ✅ **Notebook 03**: FAISS Index and Retrieval complete
+- Implemented `build_faiss_index()` with IndexFlatIP (inner product for cosine similarity)
+- Implemented `save_index()` and `load_index()` for persistence
+- Implemented `retrieve()` function for semantic search
+- Successfully built and saved FAISS index with metadata (Parquet format)
+- Implemented `compose_answer()` with sentence segmentation, scoring, and quote selection
+- Created filter function to exclude TOC/header chunks from results
+- Tested retrieval with multiple queries
+
+**Key Achievements:**
+- Full FAISS index built and persisted to `data/index/`
+- Metadata stored alongside index for citation generation
+- Retrieval pipeline working end-to-end
+- Answer composition pipeline implemented (sentence selection, scoring, synthesis)
+- Chunk text lookup working correctly
+
+**Current Status:**
+- Index contains 374 chunks for Dorian Gray (or 10 in test mode)
+- Retrieval returns top-k chunks with similarity scores
+- Answer composition generates structured responses with citations
+
+---
+
+## Current Accuracy Assessment
+
+### ⚠️ Known Issues
+
+During testing, we've observed that **semantic retrieval accuracy varies** depending on query phrasing:
+
+**Working Well:**
+- Descriptive queries about concrete objects (e.g., "What does the portrait look like?") tend to retrieve relevant chunks
+- Queries with direct keyword matches perform better
+
+**Needs Improvement:**
+- Abstract/philosophical queries (e.g., "What does Lord Henry claim about influence on the young?") sometimes miss the correct chunks
+- The correct answer chunk may exist in the index but rank 6th-20th instead of top 5
+- Some queries retrieve contextually related but not directly relevant chunks
+
+### 🔧 Ongoing Improvements
+
+We're actively working on:
+
+1. **Query Optimization**: Testing different query phrasings to improve semantic matching
+2. **Top-k Expansion**: Increasing `top_k` from 5 to 10-20 to capture chunks that rank lower but are still relevant
+3. **Chunk Filtering**: Enhanced filtering to exclude TOC/header chunks that sometimes rank too high
+4. **Embedding Model Evaluation**: Considering if `all-MiniLM-L6-v2` is optimal for this literary domain
+5. **Hybrid Search**: Exploring combination of semantic search with keyword matching for better recall
+
+**Next Steps:**
+- Build a small gold QA evaluation set (10-20 questions with known answer chunks)
+- Measure Recall@k to quantify retrieval performance
+- Test different embedding models or fine-tuning approaches
+- Implement query expansion/reformulation techniques
+
 ---
 
 ## Evaluation (lightweight)
