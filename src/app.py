@@ -6,15 +6,16 @@ import yaml
 import numpy as np
 import faiss
 import gradio as gr
+import re
 from sentence_transformers import SentenceTransformer
 from src.embed_index import load_index
 from src.retrieve import retrieve
 from src.compose import compose_answer
 
 
-def load_config(config_path="configs/app.yaml"):
+def load_config(config_path="../configs/app.yaml"):
     """Load configuration from YAML file."""
-    with open(config_path, 'r') as f:
+    with open(config_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 
@@ -24,6 +25,72 @@ def embed_query(query: str, model: SentenceTransformer) -> np.ndarray:
     embedding = np.array(embedding, dtype=np.float32)
     faiss.normalize_L2(embedding)  # Normalize for IndexFlatIP
     return embedding[0]  # Return 1D array (retrieve expects this)
+
+
+def is_toc_or_header_chunk(result: dict) -> bool:
+    """
+    Detect if a chunk is a TOC, header, or low-content chunk.
+    Returns True if it should be filtered out.
+    """
+    text = result.get('text', '')
+    chunk_id = result.get('chunk_id', '')
+    meta = result.get('meta', {})
+    
+    # Filter out chunk 0 (usually TOC/preface)
+    if chunk_id.endswith('_chunk_0') or meta.get('para_idx_start', -1) == 0:
+        # But allow it if it has substantial content (not just TOC)
+        if 'Contents' in text and text.count('CHAPTER') > 5:
+            return True  # It's a TOC
+    
+    # Filter very short chunks
+    if len(text) < 150:
+        return True
+    
+    # Filter chunks with too many newlines (indicates headers/TOC)
+    newline_ratio = text.count('\n') / len(text) if len(text) > 0 else 0
+    if newline_ratio > 0.15:  # More than 15% newlines
+        return True
+    
+    # Filter chunks that are mostly chapter titles
+    lines = text.split('\n')
+    chapter_lines = [line for line in lines if 'CHAPTER' in line.upper() or 
+                     re.match(r'^CHAPTER\s+[IVX]+', line, re.IGNORECASE)]
+    if len(chapter_lines) > 3:  # More than 3 chapter title lines
+        return True
+    
+    # Filter chunks that start with title/author/contents pattern
+    first_100 = text[:100].lower()
+    if ('contents' in first_100 and 'chapter' in first_100) or \
+       (text.startswith('The Picture of') and 'by Oscar Wilde' in first_100):
+        # Check if it's mostly TOC (many short lines)
+        short_lines = [line for line in lines[:30] if len(line.strip()) < 50]
+        if len(short_lines) > 10:  # More than 10 short lines in first 30
+            return True
+    
+    return False
+
+
+def filter_results(results: list, filter_toc: bool = True) -> list:
+    """
+    Filter out TOC/header chunks from retrieval results.
+    
+    Args:
+        results: List of retrieved chunk dicts
+        filter_toc: Whether to apply TOC/header filtering
+    
+    Returns:
+        Filtered list of results
+    """
+    if not filter_toc:
+        return results
+    
+    filtered = [r for r in results if not is_toc_or_header_chunk(r)]
+    
+    # If filtering removed all results, return original (better than nothing)
+    if not filtered and results:
+        return results
+    
+    return filtered
 
 
 def format_composed_answer(composed: dict) -> str:
@@ -40,9 +107,22 @@ def format_composed_answer(composed: dict) -> str:
     return output
 
 
-def predict(query: str, index, metadata_df, model: SentenceTransformer, config, chunks_lookup: dict = None):
+def predict(query: str, index, metadata_df, model: SentenceTransformer, config, 
+            chunks_lookup: dict = None, filter_toc: bool = True):
     """
     Main prediction function: retrieve chunks, compose answer, and format for display.
+    
+    Args:
+        query: User's question
+        index: FAISS index
+        metadata_df: Metadata DataFrame
+        model: SentenceTransformer model
+        config: Configuration dict
+        chunks_lookup: Dict mapping chunk_id to chunk data
+        filter_toc: Whether to filter out TOC/header chunks
+    
+    Returns:
+        Formatted markdown string with answer and citations
     """
     if not query or not query.strip():
         return "Please enter a question."
@@ -68,6 +148,12 @@ def predict(query: str, index, metadata_df, model: SentenceTransformer, config, 
         if not retrieved:
             return "No results found. Try a different query."
         
+        # Filter out TOC/header chunks if enabled
+        if filter_toc:
+            retrieved = filter_results(retrieved, filter_toc=True)
+            if not retrieved:
+                return "No relevant content found after filtering. Try a different query."
+        
         # Compose answer using retrieved chunks
         try:
             composed = compose_answer(query, retrieved, max_quotes=max_quotes)
@@ -75,13 +161,20 @@ def predict(query: str, index, metadata_df, model: SentenceTransformer, config, 
             return output
         except Exception as compose_error:
             # Fallback: show raw retrieval results if composition fails
-            return f"Error composing answer: {compose_error}\n\nRetrieved {len(retrieved)} chunks."
+            error_msg = f"Error composing answer: {compose_error}\n\n"
+            error_msg += f"Retrieved {len(retrieved)} chunks. Showing top result:\n\n"
+            if retrieved:
+                top_result = retrieved[0]
+                error_msg += f"**Chunk:** {top_result.get('chunk_id', 'unknown')}\n"
+                error_msg += f"**Score:** {top_result.get('score', 0):.4f}\n"
+                error_msg += f"**Text:** {top_result.get('text', '')[:300]}...\n"
+            return error_msg
         
     except Exception as e:
-        return f"Error processing query: {str(e)}"
+        return f"Error processing query: {str(e)}\n\nPlease try rephrasing your question."
 
 
-def launch_app(config_path="configs/app.yaml", index_dir="data/index"):
+def launch_app(config_path="../configs/app.yaml", index_dir="../data/index"):
     """
     Start a Gradio Interface for the RAG system.
     
@@ -121,7 +214,7 @@ def launch_app(config_path="configs/app.yaml", index_dir="data/index"):
     
     # Create prediction function with loaded resources
     def predict_wrapper(query: str):
-        return predict(query, index, metadata_df, model, config, chunks_lookup)
+        return predict(query, index, metadata_df, model, config, chunks_lookup, filter_toc=True)
     
     # Create Gradio interface
     interface = gr.Interface(
@@ -136,16 +229,23 @@ def launch_app(config_path="configs/app.yaml", index_dir="data/index"):
         description=f"""
         Ask questions about **{config['book'].title()}**!
         
-        This system uses semantic search to find relevant passages and compose answers.
+        This system uses semantic search to find relevant passages and compose answers with verbatim citations.
+        
+        **Tips for better results:**
+        - Ask specific, concrete questions
+        - Use descriptive queries about characters, objects, or events
+        - The system automatically filters out table-of-contents and headers
         """,
         examples=[
-            "What does Lord Henry say about influence?",
-            "How does the story describe Dorian's portrait?",
-            "What is the main theme of the book?",
+            "What does the portrait of Dorian Gray look like?",
+            "How does Basil describe meeting Dorian for the first time?",
+            "What does Lord Henry say about beauty and intellect?",
+            "Why doesn't Basil want to exhibit the portrait?",
         ] if config['book'] == 'dorian' else [
-            "How does Homer portray Achilles' anger?",
-            "What happens in Book 1?",
+            "How does Homer portray Achilles' anger in Book 1?",
+            "What happens in the first book of the Iliad?",
             "Describe the shield of Achilles.",
+            "What is the conflict between Agamemnon and Achilles?",
         ],
         theme=gr.themes.Soft(),
     )
@@ -157,4 +257,3 @@ def launch_app(config_path="configs/app.yaml", index_dir="data/index"):
 if __name__ == "__main__":
     interface = launch_app()
     interface.launch(share=False, server_name="0.0.0.0", server_port=7860)
-
